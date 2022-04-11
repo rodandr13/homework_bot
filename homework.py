@@ -2,7 +2,6 @@ import os
 import logging
 import sys
 import time
-import json
 
 from http import HTTPStatus
 
@@ -10,15 +9,16 @@ import requests
 import telegram
 
 from dotenv import load_dotenv
+from logging.handlers import RotatingFileHandler
 
 
 load_dotenv()
 
-PRACTICUM_TOKEN = 'AQAAAAAD7JqhAAYckda81eiXxk-_uuG5WGjYOds'
-TELEGRAM_TOKEN = '5062990002:AAGME8a2Wx49EIbr4Kv9bI1ZqlClDl61MCI'
-TELEGRAM_CHAT_ID = 318657667
+PRACTICUM_TOKEN = os.getenv('practicum_token')
+TELEGRAM_TOKEN = os.getenv('telegram_token')
+TELEGRAM_CHAT_ID = os.getenv('telegram_chat_id')
 
-RETRY_TIME = 60
+RETRY_TIME = 600
 ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
 HEADERS = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
 
@@ -35,43 +35,47 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s, %(levelname)s, %(name)s, %(message)s',
 )
-logger.addHandler(logging.StreamHandler())
+handler = RotatingFileHandler(
+    'logs.log',
+    maxBytes=50000000,
+    backupCount=5
+)
+logger.addHandler(handler)
 
 
 def send_message(bot, message):
-    """Отправка сообщения."""
     try:
         bot.send_message(TELEGRAM_CHAT_ID, message)
-    except telegram.TelegramError:
-        logger.error('Телеграм не работает')
-    logger.info(f'Сообщение отправлено: {message}')
+        logger.info(f'Сообщение отправлено: {message}')
+    except telegram.TelegramError as error:
+        logger.error(f'Ошибка телеграма: {error}')
 
 
 def get_api_answer(current_timestamp):
     timestamp = current_timestamp or int(time.time())
-    params = {'from_date': 0}
+    params = {'from_date': timestamp}
     try:
         response = requests.get(ENDPOINT, headers=HEADERS, params=params)
         if response.status_code != HTTPStatus.OK:
-            logger.error('URL практикума не доступен')
-            raise AssertionError('URL практикума не доступен')
+            logger.error('Эндпоинт практикума не доступен')
+            raise AssertionError('Эндпоинт практикума не доступен')
         return response.json()
     except Exception as error:
-        logger.error(f'Ошибка при запросе: {error}')
-        raise AssertionError('Ошибка при запросе')
+        logger.error(f'Ошибка при запросе эндпоинта: {error}')
+        raise AssertionError('Ошибка при запросе эндпоинта')
+    return response.json()
 
 
 def check_response(response):
-    try:
-        homeworks = response['homeworks']
-        if not isinstance(homeworks, list):
-            raise ValueError
-        if not homeworks:
-            raise ValueError
-    except KeyError:
-        raise KeyError('В ответе что-то не то.')
-    except TypeError:
-        raise TypeError('Недопустимый тип данных.')
+    if not isinstance(response, dict):
+        raise TypeError('Ответ не формата dict')
+    if "homeworks" not in response:
+        raise KeyError('Ответ не содержит ключ homeworks.')
+    if "current_date" not in response:
+        raise KeyError('Ответ не содержит ключ current_date.')
+    homeworks = response['homeworks']
+    if not isinstance(homeworks, list):
+        raise TypeError('Ответ не формата list')
     return homeworks
 
 
@@ -87,10 +91,12 @@ def parse_status(homework):
 def check_tokens():
     return all((PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID))
 
+
 def main():
     """Основная логика работы бота."""
-    if not check_tokens:
-        raise AssertionError('')
+    if not check_tokens():
+        logger.critical('Нет переменной окружения')
+        sys.exit('Нет переменной окружения')
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     current_timestamp = int(time.time())
     last_status = None
@@ -110,7 +116,6 @@ def main():
             else:
                 logger.debug('Статус домашней работы не изменился.')
             current_timestamp = response['current_date']
-            time.sleep(RETRY_TIME)
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             logger.error(message, exc_info=True)
@@ -122,4 +127,8 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print('Работа бота завершена.')
+        sys.exit(0)
