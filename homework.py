@@ -44,7 +44,7 @@ logger.addHandler(handler)
 
 
 def send_message(bot, message):
-    """Отправка сообщения в телеграм"""
+    """Отправка сообщения в телеграм."""
     try:
         bot.send_message(TELEGRAM_CHAT_ID, message)
         logger.info(f'Сообщение отправлено: {message}')
@@ -53,7 +53,7 @@ def send_message(bot, message):
 
 
 def get_api_answer(current_timestamp):
-    """Получения ответа от API эндпоинта"""
+    """Получения ответа от API эндпоинта."""
     timestamp = current_timestamp or int(time.time())
     params = {'from_date': timestamp}
     try:
@@ -69,7 +69,7 @@ def get_api_answer(current_timestamp):
 
 
 def check_response(response):
-    """Проверка API ответа"""
+    """Проверка API ответа."""
     if not isinstance(response, dict):
         raise TypeError('Ответ не формата dict')
     if "homeworks" not in response:
@@ -83,7 +83,7 @@ def check_response(response):
 
 
 def parse_status(homework):
-    """Парсинг статуса ответа"""
+    """Парсинг статуса ответа."""
     homework_name = homework.get('homework_name')
     homework_status = homework.get('status')
     verdict = HOMEWORK_STATUSES[homework_status]
@@ -93,7 +93,7 @@ def parse_status(homework):
 
 
 def check_tokens():
-    """Проверка наличия токенов"""
+    """Проверка наличия токенов."""
     return all((PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID))
 
 
