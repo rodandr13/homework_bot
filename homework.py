@@ -2,14 +2,12 @@ import os
 import logging
 import sys
 import time
-
 from http import HTTPStatus
+from logging.handlers import RotatingFileHandler
 
 import requests
 import telegram
-
 from dotenv import load_dotenv
-from logging.handlers import RotatingFileHandler
 
 
 load_dotenv()
@@ -23,21 +21,17 @@ ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
 HEADERS = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
 
 
-HOMEWORK_STATUSES = {
+HOMEWORK_RESULTS = {
     'approved': 'Работа проверена: ревьюеру всё понравилось. Ура!',
     'reviewing': 'Работа взята на проверку ревьюером.',
     'rejected': 'Работа проверена: у ревьюера есть замечания.'
 }
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(
-    stream=sys.stdout,
-    level=logging.INFO,
-    format='%(asctime)s, %(levelname)s, %(name)s, %(message)s',
-)
+
 handler = RotatingFileHandler(
     'logs.log',
-    maxBytes=50000000,
+    maxBytes=50_000_000,
     backupCount=5
 )
 logger.addHandler(handler)
@@ -49,7 +43,7 @@ def send_message(bot, message):
         bot.send_message(TELEGRAM_CHAT_ID, message)
         logger.info(f'Сообщение отправлено: {message}')
     except telegram.TelegramError as error:
-        logger.error(f'Ошибка телеграма: {error}')
+        raise AssertionError(f'Ошибка телеграма: {error}')
 
 
 def get_api_answer(current_timestamp):
@@ -59,22 +53,20 @@ def get_api_answer(current_timestamp):
     try:
         response = requests.get(ENDPOINT, headers=HEADERS, params=params)
         if response.status_code != HTTPStatus.OK:
-            logger.error('Эндпоинт практикума не доступен')
             raise AssertionError('Эндпоинт практикума не доступен')
         return response.json()
     except Exception as error:
         logger.error(f'Ошибка при запросе эндпоинта: {error}')
         raise AssertionError('Ошибка при запросе эндпоинта')
-    return response.json()
 
 
 def check_response(response):
     """Проверка API ответа."""
     if not isinstance(response, dict):
         raise TypeError('Ответ не формата dict')
-    if "homeworks" not in response:
+    if 'homeworks' not in response:
         raise KeyError('Ответ не содержит ключ homeworks.')
-    if "current_date" not in response:
+    if 'current_date' not in response:
         raise KeyError('Ответ не содержит ключ current_date.')
     homeworks = response['homeworks']
     if not isinstance(homeworks, list):
@@ -86,8 +78,8 @@ def parse_status(homework):
     """Парсинг статуса ответа."""
     homework_name = homework.get('homework_name')
     homework_status = homework.get('status')
-    verdict = HOMEWORK_STATUSES[homework_status]
-    if homework_status not in HOMEWORK_STATUSES:
+    verdict = HOMEWORK_RESULTS[homework_status]
+    if homework_status not in HOMEWORK_RESULTS:
         raise KeyError(f'Неизвестный статус {homework_status}')
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
@@ -132,6 +124,13 @@ def main():
 
 
 if __name__ == '__main__':
+
+    logging.basicConfig(
+        stream=sys.stdout,
+        level=logging.INFO,
+        format='%(asctime)s, %(levelname)s, %(name)s, %(message)s',
+    )
+
     try:
         main()
     except KeyboardInterrupt:
