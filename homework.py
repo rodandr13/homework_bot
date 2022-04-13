@@ -10,7 +10,8 @@ import telegram
 from dotenv import load_dotenv
 
 from exceptions import (SendMessageError, EndpointAPIError, HomeworkJSONError,
-                        EndpointHTTPStatusError, MissingTokenError, HomeworkPracticumError)
+                        EndpointHTTPStatusError, MissingTokenError,
+                        HomeworkPracticumError)
 
 
 load_dotenv()
