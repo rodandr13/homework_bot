@@ -9,6 +9,8 @@ import requests
 import telegram
 from dotenv import load_dotenv
 
+from exceptions import SendMessageError, EndpointAPIError, HomeworkJSONError
+
 
 load_dotenv()
 
@@ -16,10 +18,9 @@ PRACTICUM_TOKEN = os.getenv('practicum_token')
 TELEGRAM_TOKEN = os.getenv('telegram_token')
 TELEGRAM_CHAT_ID = os.getenv('telegram_chat_id')
 
-RETRY_TIME = 600
+RETRY_TIME = 60
 ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
 HEADERS = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
-
 
 HOMEWORK_RESULTS = {
     'approved': 'Работа проверена: ревьюеру всё понравилось. Ура!',
@@ -43,21 +44,20 @@ def send_message(bot, message):
         bot.send_message(TELEGRAM_CHAT_ID, message)
         logger.info(f'Сообщение отправлено: {message}')
     except telegram.TelegramError as error:
-        raise AssertionError(f'Ошибка телеграма: {error}')
+        raise SendMessageError(f'Ошибка телеграма: {error}')
 
 
 def get_api_answer(current_timestamp):
     """Получения ответа от API эндпоинта."""
     timestamp = current_timestamp or int(time.time())
-    params = {'from_date': timestamp}
+    params = {'from_date': 0}
     try:
         response = requests.get(ENDPOINT, headers=HEADERS, params=params)
         if response.status_code != HTTPStatus.OK:
-            raise AssertionError('Эндпоинт практикума не доступен')
+            raise EndpointAPIError('Эндпоинт практикума не доступен')
         return response.json()
     except Exception as error:
-        logger.error(f'Ошибка при запросе эндпоинта: {error}')
-        raise AssertionError('Ошибка при запросе эндпоинта')
+        raise AssertionError(f'Ошибка при запросе эндпоинта: {error}')
 
 
 def check_response(response):
@@ -106,7 +106,7 @@ def main():
                 status = parse_status(homework[0])
             else:
                 logger.info('Нет домашней работы.')
-                raise AssertionError('Нет домашней работы.')
+                raise HomeworkJSONError('Нет домашней работы.')
             if status != last_status:
                 send_message(bot=bot, message=status)
                 last_status = status
@@ -118,7 +118,7 @@ def main():
             logger.error(message, exc_info=True)
             send_message(bot=bot, message=message)
         else:
-            logging.info('Программа отработала без ошибок.')
+            logger.info('Программа отработала без ошибок.')
         finally:
             time.sleep(RETRY_TIME)
 
