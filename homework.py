@@ -9,8 +9,8 @@ import requests
 import telegram
 from dotenv import load_dotenv
 
-from exceptions import SendMessageError, EndpointAPIError, HomeworkJSONError
-
+from exceptions import (SendMessageError, EndpointAPIError, HomeworkJSONError,
+                        EndpointHTTPStatusError, MissingTokenError, HomeworkPracticumError)
 
 load_dotenv()
 
@@ -54,10 +54,10 @@ def get_api_answer(current_timestamp):
     try:
         response = requests.get(ENDPOINT, headers=HEADERS, params=params)
         if response.status_code != HTTPStatus.OK:
-            raise EndpointAPIError('Эндпоинт практикума не доступен')
+            raise EndpointHTTPStatusError('Эндпоинт практикума не доступен')
         return response.json()
     except Exception as error:
-        raise AssertionError(f'Ошибка при запросе эндпоинта: {error}')
+        raise EndpointAPIError(f'Ошибка при запросе эндпоинта: {error}')
 
 
 def check_response(response):
@@ -93,7 +93,7 @@ def main():
     """Основная логика работы бота."""
     if not check_tokens():
         logger.critical('Нет переменной окружения')
-        sys.exit('Нет переменной окружения')
+        raise MissingTokenError('Проверьте значение токенов')
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     current_timestamp = int(time.time())
     last_status = None
@@ -113,10 +113,11 @@ def main():
             else:
                 logger.debug('Статус домашней работы не изменился.')
             current_timestamp = response['current_date']
-        except Exception as error:
+        except HomeworkPracticumError as error:
             message = f'Сбой в работе программы: {error}'
-            logger.error(message, exc_info=True)
-            send_message(bot=bot, message=message)
+            logger.error(message)
+        except Exception as error:
+            logger.error(error)
         else:
             logger.info('Программа отработала без ошибок.')
         finally:

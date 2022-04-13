@@ -3,11 +3,26 @@ class SendMessageError(Exception):
     pass
 
 
-class EndpointAPIError(Exception):
-    """Эндпоинт практикума недоступен"""
+class MissingTokenError(Exception):
+    """Отсутствие константы окружения"""
     pass
 
 
-class HomeworkJSONError(Exception):
+class HomeworkPracticumError(Exception):
+    """Ошибки сервиса при взаимодействии с яндекс.домашка"""
+
+
+class EndpointAPIError(HomeworkPracticumError):
+    """Ошибка при запросе эндпоинта"""
+    pass
+
+
+class EndpointHTTPStatusError(HomeworkPracticumError):
+    """Статус ответа эндпоинта вернул ошибку"""
+    pass
+
+
+class HomeworkJSONError(HomeworkPracticumError):
     """Нет домашней работы для проверки"""
     pass
+
