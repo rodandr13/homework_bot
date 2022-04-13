@@ -118,6 +118,7 @@ def main():
         except HomeworkPracticumError as error:
             message = f'Сбой в работе программы: {error}'
             logger.error(message)
+            send_message(bot, message)
         except Exception as error:
             logger.error(error)
         else:
