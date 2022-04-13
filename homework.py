@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from exceptions import (SendMessageError, EndpointAPIError, HomeworkJSONError,
                         EndpointHTTPStatusError, MissingTokenError, HomeworkPracticumError)
 
+
 load_dotenv()
 
 PRACTICUM_TOKEN = os.getenv('practicum_token')
